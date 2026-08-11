@@ -27,6 +27,17 @@
         android:textColor="#C7D0E0"
         android:textSize="11sp" />
 
+    <ProgressBar
+        android:id="@+id/widgetProgress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="7dp"
+        android:layout_marginBottom="7dp"
+        android:max="100"
+        android:progress="0"
+        android:progressTint="#44D27A"
+        android:progressBackgroundTint="#2B3447" />
+
     <ImageView
         android:id="@+id/widgetDotImage"
         android:layout_width="match_parent"

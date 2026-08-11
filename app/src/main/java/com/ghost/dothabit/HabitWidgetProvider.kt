@@ -34,17 +34,20 @@ class HabitWidgetProvider : AppWidgetProvider() {
             val doneToday = PrefsHelper.isDone(context, today, habitId)
             val level = PrefsHelper.getChallengeLevel(context, habitId)
             val streak = PrefsHelper.currentStreak(context, habitId)
+            val progress = ((streak.coerceAtMost(level.targetDays) * 100f) / level.targetDays).toInt()
+            val daysLeft = (level.targetDays - streak).coerceAtLeast(0)
             val progressText = "${level.title}: ${streak.coerceAtMost(level.targetDays)}/${level.targetDays} days"
             views.setTextViewText(
                 R.id.widgetTodayStatus,
                 when {
                     streak >= level.targetDays -> "Unlocked: ${PrefsHelper.getReward(context, habitId)}"
-                    doneToday -> "$progressText - keep going"
+                    doneToday -> "$progressText - $daysLeft left"
                     else -> "$progressText - tap today"
                 }
             )
+            views.setProgressBar(R.id.widgetProgress, 100, progress, false)
 
-            views.setImageViewBitmap(R.id.widgetDotImage, renderDotGrid(context, habitId))
+            views.setImageViewBitmap(R.id.widgetDotImage, renderDotGrid(context, habitId, streak, level.targetDays))
 
             val toggleIntent = Intent(context, HabitWidgetProvider::class.java).apply {
                 action = ACTION_TOGGLE_TODAY
@@ -74,7 +77,7 @@ class HabitWidgetProvider : AppWidgetProvider() {
             mgr.updateAppWidget(widgetId, views)
         }
 
-        private fun renderDotGrid(context: Context, habitId: String): Bitmap {
+        private fun renderDotGrid(context: Context, habitId: String, streak: Int, target: Int): Bitmap {
             val cols = 7
             val cellSize = 60
             val cal = Calendar.getInstance()
@@ -82,7 +85,8 @@ class HabitWidgetProvider : AppWidgetProvider() {
             val today = cal.get(Calendar.DAY_OF_MONTH)
             val rows = ((totalDays - 1) / cols) + 1
 
-            val bitmap = Bitmap.createBitmap(cols * cellSize, rows * cellSize, Bitmap.Config.ARGB_8888)
+            val labelSpace = 34
+            val bitmap = Bitmap.createBitmap(cols * cellSize, rows * cellSize + labelSpace, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
 
             val red = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#FF5A6A") }
@@ -92,6 +96,13 @@ class HabitWidgetProvider : AppWidgetProvider() {
                 color = Color.WHITE
                 style = Paint.Style.STROKE
                 strokeWidth = 4f
+            }
+            val glow = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#5534F59D") }
+            val label = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.parseColor("#DDE7F7")
+                textAlign = Paint.Align.CENTER
+                textSize = 28f
+                isFakeBoldText = true
             }
 
             val radius = cellSize * 0.35f
@@ -110,9 +121,13 @@ class HabitWidgetProvider : AppWidgetProvider() {
                         if (PrefsHelper.isDone(context, dayCal, habitId)) green else red
                     }
                 }
+                if (day <= streak.coerceAtMost(target)) {
+                    canvas.drawCircle(cx, cy, radius + 8f, glow)
+                }
                 canvas.drawCircle(cx, cy, radius, paint)
                 if (day == today) canvas.drawCircle(cx, cy, radius + 4f, ring)
             }
+            canvas.drawText("STREAK $streak", bitmap.width / 2f, bitmap.height - 8f, label)
             return bitmap
         }
     }

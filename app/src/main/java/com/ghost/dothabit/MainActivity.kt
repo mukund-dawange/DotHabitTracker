@@ -12,6 +12,8 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ProgressBar
+import android.widget.RadioButton
+import android.widget.RadioGroup
 import android.widget.Spinner
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -35,6 +37,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var challengeProgress: ProgressBar
     private lateinit var challengeButton: Button
     private lateinit var challengePanel: View
+    private lateinit var coachText: TextView
     private var habits: List<PrefsHelper.Habit> = emptyList()
     private var isRefreshing = false
 
@@ -56,6 +59,7 @@ class MainActivity : AppCompatActivity() {
         challengeProgress = findViewById(R.id.challengeProgress)
         challengeButton = findViewById(R.id.challengeButton)
         challengePanel = findViewById(R.id.challengePanel)
+        coachText = findViewById(R.id.coachText)
 
         habitNameText.setOnClickListener { showHabitDialog() }
         addHabitButton.setOnClickListener { showHabitDialog(isNew = true) }
@@ -115,13 +119,21 @@ class MainActivity : AppCompatActivity() {
         val streak = PrefsHelper.currentStreak(this, selectedHabit.id)
         val target = selectedHabit.level.targetDays
         val progress = ((streak.coerceAtMost(target) * 100f) / target).toInt()
+        val daysLeft = (target - streak).coerceAtLeast(0)
         todayText.text = if (isDone) "Today is done" else "Today is waiting"
         streakText.text = "$streak day streak"
-        challengeText.text = "${selectedHabit.level.title} challenge: ${streak.coerceAtMost(target)}/$target days"
+        challengeText.text = "${selectedHabit.level.title} challenge"
         rewardText.text = if (streak >= target) {
             "Reward unlocked: ${selectedHabit.reward}"
         } else {
-            "Reward: ${selectedHabit.reward}"
+            "Reward: ${selectedHabit.reward} after $daysLeft more days"
+        }
+        coachText.text = when {
+            streak >= target -> "You earned it. Claim the reward, then raise the target."
+            isDone -> "Locked in for today. Tomorrow keeps the chain alive."
+            streak == 0 -> "Start the streak today. One tap begins the challenge."
+            daysLeft == 1 -> "One more clean day unlocks the reward."
+            else -> "$daysLeft days left. Keep the chain unbroken."
         }
         challengeProgress.progress = progress
         deleteHabitButton.isEnabled = habits.size > 1
@@ -173,18 +185,28 @@ class MainActivity : AppCompatActivity() {
             setSingleLine(false)
             minLines = 1
         }
-        val levelSpinner = Spinner(this)
         val levels = PrefsHelper.ChallengeLevel.values().toList()
-        levelSpinner.adapter = ArrayAdapter(this, R.layout.habit_spinner_item, levels.map { "${it.title} - ${it.targetDays} days" }).apply {
-            setDropDownViewResource(R.layout.habit_choice_item)
+        val levelGroup = RadioGroup(this).apply {
+            orientation = RadioGroup.VERTICAL
+            setPadding(0, 18, 0, 8)
         }
-        levelSpinner.setSelection(levels.indexOf(PrefsHelper.getChallengeLevel(this, habitId)).coerceAtLeast(0))
+        levels.forEachIndexed { index, level ->
+            levelGroup.addView(RadioButton(this).apply {
+                id = 7000 + index
+                text = "${level.title} challenge - ${level.targetDays} days"
+                textSize = 16f
+                setTextColor(android.graphics.Color.parseColor("#1A1D24"))
+                setPadding(0, 8, 0, 8)
+            })
+        }
+        val selectedLevelIndex = levels.indexOf(PrefsHelper.getChallengeLevel(this, habitId)).coerceAtLeast(0)
+        levelGroup.check(7000 + selectedLevelIndex)
 
         val autoButton = Button(this).apply {
             text = "Auto choose from reward"
             setOnClickListener {
                 val auto = PrefsHelper.autoLevelForReward(rewardInput.text.toString())
-                levelSpinner.setSelection(levels.indexOf(auto))
+                levelGroup.check(7000 + levels.indexOf(auto))
             }
         }
 
@@ -193,7 +215,7 @@ class MainActivity : AppCompatActivity() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(8, 4, 8, 0)
             addView(rewardInput)
-            addView(levelSpinner)
+            addView(levelGroup)
             addView(autoButton)
         }
 
@@ -201,7 +223,8 @@ class MainActivity : AppCompatActivity() {
             .setTitle("Challenge reward")
             .setView(content)
             .setPositiveButton("Save") { _, _ ->
-                val level = levels[levelSpinner.selectedItemPosition]
+                val levelIndex = (levelGroup.checkedRadioButtonId - 7000).coerceIn(0, levels.lastIndex)
+                val level = levels[levelIndex]
                 PrefsHelper.saveChallenge(this, habitId, level, rewardInput.text.toString().trim())
                 refreshUi()
                 refreshWidgets()
@@ -216,8 +239,9 @@ class MainActivity : AppCompatActivity() {
         dotGrid.scaleX = 0.98f
         dotGrid.scaleY = 0.98f
         challengePanel.alpha = 0.78f
+        challengePanel.translationY = 10f
         dotGrid.animate().scaleX(1f).scaleY(1f).setDuration(220).start()
-        challengePanel.animate().alpha(1f).setDuration(260).start()
+        challengePanel.animate().alpha(1f).translationY(0f).setDuration(260).start()
     }
 
     private fun refreshWidgets() {
