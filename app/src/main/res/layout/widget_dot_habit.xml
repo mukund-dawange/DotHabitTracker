@@ -2,27 +2,30 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="#151B26"
     android:orientation="vertical"
-    android:padding="12dp"
-    android:background="#1E1E1E">
+    android:padding="12dp">
 
     <TextView
         android:id="@+id/widgetHabitName"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:singleLine="true"
+        android:text="My Habit"
         android:textColor="#FFFFFF"
-        android:textStyle="bold"
-        android:textSize="14sp"
-        android:text="My Habit" />
+        android:textSize="15sp"
+        android:textStyle="bold" />
 
     <TextView
         android:id="@+id/widgetTodayStatus"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textColor="#BDBDBD"
-        android:textSize="11sp"
+        android:layout_marginTop="2dp"
         android:layout_marginBottom="6dp"
-        android:text="Tap to mark today" />
+        android:text="Tap to mark today"
+        android:textColor="#C7D0E0"
+        android:textSize="11sp" />
 
     <ImageView
         android:id="@+id/widgetDotImage"
