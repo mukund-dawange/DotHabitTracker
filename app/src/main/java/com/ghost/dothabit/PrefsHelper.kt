@@ -18,15 +18,29 @@ object PrefsHelper {
 
     private val fmt = SimpleDateFormat("yyyy-MM-dd", Locale.US)
 
-    data class Habit(val id: String, val name: String)
+    enum class ChallengeLevel(val title: String, val targetDays: Int) {
+        EASY("Easy", 3),
+        MID("Mid", 7),
+        HARD("Hard", 21)
+    }
+
+    data class Habit(
+        val id: String,
+        val name: String,
+        val level: ChallengeLevel,
+        val reward: String
+    )
 
     fun prefs(context: Context) =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     fun getHabits(context: Context): List<Habit> {
         migrateLegacyHabit(context)
-        return habitIds(context).map { id -> Habit(id, getHabitName(context, id)) }
-            .ifEmpty { listOf(Habit(DEFAULT_HABIT_ID, "My Habit")) }
+        return habitIds(context).map { id ->
+            Habit(id, getHabitName(context, id), getChallengeLevel(context, id), getReward(context, id))
+        }.ifEmpty {
+            listOf(Habit(DEFAULT_HABIT_ID, "My Habit", ChallengeLevel.EASY, "Small treat"))
+        }
     }
 
     fun getSelectedHabitId(context: Context): String {
@@ -50,16 +64,49 @@ object PrefsHelper {
         prefs(context).edit().putString(nameKey(habitId), name).apply()
     }
 
-    fun addHabit(context: Context, name: String): String {
+    fun addHabit(
+        context: Context,
+        name: String,
+        level: ChallengeLevel = ChallengeLevel.EASY,
+        reward: String = "Small treat"
+    ): String {
         val id = "custom_${System.currentTimeMillis()}"
         val ids = habitIds(context).toMutableList()
         ids.add(id)
         prefs(context).edit()
             .putString(KEY_HABIT_IDS, ids.joinToString(","))
             .putString(nameKey(id), name)
+            .putString(levelKey(id), level.name)
+            .putString(rewardKey(id), reward)
             .putString(KEY_SELECTED_HABIT_ID, id)
             .apply()
         return id
+    }
+
+    fun saveChallenge(context: Context, habitId: String, level: ChallengeLevel, reward: String) {
+        prefs(context).edit()
+            .putString(levelKey(habitId), level.name)
+            .putString(rewardKey(habitId), reward.ifBlank { "Small treat" })
+            .apply()
+    }
+
+    fun getChallengeLevel(context: Context, habitId: String = getSelectedHabitId(context)): ChallengeLevel {
+        val raw = prefs(context).getString(levelKey(habitId), ChallengeLevel.EASY.name)
+        return ChallengeLevel.values().firstOrNull { it.name == raw } ?: ChallengeLevel.EASY
+    }
+
+    fun getReward(context: Context, habitId: String = getSelectedHabitId(context)): String =
+        prefs(context).getString(rewardKey(habitId), "Small treat") ?: "Small treat"
+
+    fun autoLevelForReward(reward: String): ChallengeLevel {
+        val text = reward.lowercase(Locale.US)
+        val hardWords = listOf("phone", "trip", "shoes", "watch", "gaming", "expensive", "big", "500", "1000")
+        val midWords = listOf("movie", "food", "pizza", "coffee", "book", "shirt", "snack", "200")
+        return when {
+            hardWords.any { text.contains(it) } || reward.length > 28 -> ChallengeLevel.HARD
+            midWords.any { text.contains(it) } || reward.length > 12 -> ChallengeLevel.MID
+            else -> ChallengeLevel.EASY
+        }
     }
 
     fun deleteHabit(context: Context, habitId: String) {
@@ -68,6 +115,8 @@ object PrefsHelper {
         val edit = prefs(context).edit()
             .putString(KEY_HABIT_IDS, ids.joinToString(","))
             .remove(nameKey(habitId))
+            .remove(levelKey(habitId))
+            .remove(rewardKey(habitId))
         prefs(context).all.keys
             .filter { it.startsWith("$HABIT_PREFIX$habitId$DAY_PREFIX") }
             .forEach { edit.remove(it) }
@@ -109,6 +158,16 @@ object PrefsHelper {
     fun daysInMonth(cal: Calendar): Int =
         cal.getActualMaximum(Calendar.DAY_OF_MONTH)
 
+    fun currentStreak(context: Context, habitId: String): Int {
+        val cal = Calendar.getInstance()
+        var count = 0
+        while (isDone(context, cal, habitId)) {
+            count++
+            cal.add(Calendar.DAY_OF_MONTH, -1)
+        }
+        return count
+    }
+
     private fun habitIds(context: Context): List<String> {
         val raw = prefs(context).getString(KEY_HABIT_IDS, null)
         return raw?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }
@@ -116,6 +175,8 @@ object PrefsHelper {
     }
 
     private fun nameKey(habitId: String) = "${HABIT_PREFIX}${habitId}_name"
+    private fun levelKey(habitId: String) = "${HABIT_PREFIX}${habitId}_level"
+    private fun rewardKey(habitId: String) = "${HABIT_PREFIX}${habitId}_reward"
 
     private fun migrateLegacyHabit(context: Context) {
         val pref = prefs(context)
@@ -125,6 +186,8 @@ object PrefsHelper {
             .putString(KEY_HABIT_IDS, DEFAULT_HABIT_ID)
             .putString(KEY_SELECTED_HABIT_ID, DEFAULT_HABIT_ID)
             .putString(nameKey(DEFAULT_HABIT_ID), legacyName)
+            .putString(levelKey(DEFAULT_HABIT_ID), ChallengeLevel.EASY.name)
+            .putString(rewardKey(DEFAULT_HABIT_ID), "Small treat")
 
         pref.all.keys
             .filter { it.startsWith(DAY_PREFIX) }

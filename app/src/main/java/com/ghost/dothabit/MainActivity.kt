@@ -4,11 +4,14 @@ import android.app.AlertDialog
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.os.Bundle
+import android.view.Gravity
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.Spinner
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -27,6 +30,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var deleteHabitButton: Button
     private lateinit var streakText: TextView
     private lateinit var todayText: TextView
+    private lateinit var challengeText: TextView
+    private lateinit var rewardText: TextView
+    private lateinit var challengeProgress: ProgressBar
+    private lateinit var challengeButton: Button
+    private lateinit var challengePanel: View
     private var habits: List<PrefsHelper.Habit> = emptyList()
     private var isRefreshing = false
 
@@ -43,11 +51,17 @@ class MainActivity : AppCompatActivity() {
         deleteHabitButton = findViewById(R.id.deleteHabitButton)
         streakText = findViewById(R.id.streakText)
         todayText = findViewById(R.id.todayText)
+        challengeText = findViewById(R.id.challengeText)
+        rewardText = findViewById(R.id.rewardText)
+        challengeProgress = findViewById(R.id.challengeProgress)
+        challengeButton = findViewById(R.id.challengeButton)
+        challengePanel = findViewById(R.id.challengePanel)
 
         habitNameText.setOnClickListener { showHabitDialog() }
         addHabitButton.setOnClickListener { showHabitDialog(isNew = true) }
         editHabitButton.setOnClickListener { showHabitDialog() }
         deleteHabitButton.setOnClickListener { showDeleteDialog() }
+        challengeButton.setOnClickListener { showChallengeDialog() }
 
         habitSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
@@ -66,6 +80,7 @@ class MainActivity : AppCompatActivity() {
             val habitId = PrefsHelper.getSelectedHabitId(this)
             PrefsHelper.setDone(this, cal, !PrefsHelper.isDone(this, cal, habitId), habitId)
             refreshUi()
+            celebrateProgress()
             refreshWidgets()
         }
 
@@ -97,8 +112,18 @@ class MainActivity : AppCompatActivity() {
 
         val today = Calendar.getInstance()
         val isDone = PrefsHelper.isDone(this, today, selectedHabit.id)
+        val streak = PrefsHelper.currentStreak(this, selectedHabit.id)
+        val target = selectedHabit.level.targetDays
+        val progress = ((streak.coerceAtMost(target) * 100f) / target).toInt()
         todayText.text = if (isDone) "Today is done" else "Today is waiting"
-        streakText.text = "${currentStreak(selectedHabit.id)} day streak"
+        streakText.text = "$streak day streak"
+        challengeText.text = "${selectedHabit.level.title} challenge: ${streak.coerceAtMost(target)}/$target days"
+        rewardText.text = if (streak >= target) {
+            "Reward unlocked: ${selectedHabit.reward}"
+        } else {
+            "Reward: ${selectedHabit.reward}"
+        }
+        challengeProgress.progress = progress
         deleteHabitButton.isEnabled = habits.size > 1
         dotGrid.invalidate()
     }
@@ -113,7 +138,11 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton("Save") { _, _ ->
                 val name = input.text.toString().trim()
                 if (name.isNotEmpty()) {
-                    if (isNew) PrefsHelper.addHabit(this, name) else PrefsHelper.setHabitName(this, name, currentId)
+                    if (isNew) {
+                        PrefsHelper.addHabit(this, name)
+                    } else {
+                        PrefsHelper.setHabitName(this, name, currentId)
+                    }
                     refreshUi()
                     refreshWidgets()
                 }
@@ -136,14 +165,59 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun currentStreak(habitId: String): Int {
-        val cal = Calendar.getInstance()
-        var count = 0
-        while (PrefsHelper.isDone(this, cal, habitId)) {
-            count++
-            cal.add(Calendar.DAY_OF_MONTH, -1)
+    private fun showChallengeDialog() {
+        val habitId = PrefsHelper.getSelectedHabitId(this)
+        val rewardInput = EditText(this).apply {
+            hint = "Reward you want"
+            setText(PrefsHelper.getReward(this@MainActivity, habitId))
+            setSingleLine(false)
+            minLines = 1
         }
-        return count
+        val levelSpinner = Spinner(this)
+        val levels = PrefsHelper.ChallengeLevel.values().toList()
+        levelSpinner.adapter = ArrayAdapter(this, R.layout.habit_spinner_item, levels.map { "${it.title} - ${it.targetDays} days" }).apply {
+            setDropDownViewResource(R.layout.habit_choice_item)
+        }
+        levelSpinner.setSelection(levels.indexOf(PrefsHelper.getChallengeLevel(this, habitId)).coerceAtLeast(0))
+
+        val autoButton = Button(this).apply {
+            text = "Auto choose from reward"
+            setOnClickListener {
+                val auto = PrefsHelper.autoLevelForReward(rewardInput.text.toString())
+                levelSpinner.setSelection(levels.indexOf(auto))
+            }
+        }
+
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(8, 4, 8, 0)
+            addView(rewardInput)
+            addView(levelSpinner)
+            addView(autoButton)
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Challenge reward")
+            .setView(content)
+            .setPositiveButton("Save") { _, _ ->
+                val level = levels[levelSpinner.selectedItemPosition]
+                PrefsHelper.saveChallenge(this, habitId, level, rewardInput.text.toString().trim())
+                refreshUi()
+                refreshWidgets()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun celebrateProgress() {
+        dotGrid.animate().cancel()
+        challengePanel.animate().cancel()
+        dotGrid.scaleX = 0.98f
+        dotGrid.scaleY = 0.98f
+        challengePanel.alpha = 0.78f
+        dotGrid.animate().scaleX(1f).scaleY(1f).setDuration(220).start()
+        challengePanel.animate().alpha(1f).setDuration(260).start()
     }
 
     private fun refreshWidgets() {

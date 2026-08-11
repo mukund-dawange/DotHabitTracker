@@ -32,9 +32,16 @@ class HabitWidgetProvider : AppWidgetProvider() {
 
             val today = Calendar.getInstance()
             val doneToday = PrefsHelper.isDone(context, today, habitId)
+            val level = PrefsHelper.getChallengeLevel(context, habitId)
+            val streak = PrefsHelper.currentStreak(context, habitId)
+            val progressText = "${level.title}: ${streak.coerceAtMost(level.targetDays)}/${level.targetDays} days"
             views.setTextViewText(
                 R.id.widgetTodayStatus,
-                if (doneToday) "Today: done (tap to undo)" else "Today: not done - tap to mark"
+                when {
+                    streak >= level.targetDays -> "Unlocked: ${PrefsHelper.getReward(context, habitId)}"
+                    doneToday -> "$progressText - keep going"
+                    else -> "$progressText - tap today"
+                }
             )
 
             views.setImageViewBitmap(R.id.widgetDotImage, renderDotGrid(context, habitId))

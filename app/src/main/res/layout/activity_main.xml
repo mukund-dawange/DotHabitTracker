@@ -62,6 +62,52 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
+        <LinearLayout
+            android:id="@+id/challengePanel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/reward_panel_bg"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/challengeText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Easy challenge: 0/3 days"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <ProgressBar
+                android:id="@+id/challengeProgress"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="10dp"
+                android:layout_marginTop="12dp"
+                android:max="100"
+                android:progress="0"
+                android:progressTint="#44D27A"
+                android:progressBackgroundTint="#263047" />
+
+            <TextView
+                android:id="@+id/rewardText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Reward: Small treat"
+                android:textColor="#FFE082"
+                android:textSize="15sp" />
+
+            <Button
+                android:id="@+id/challengeButton"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="12dp"
+                android:text="Set challenge and reward" />
+        </LinearLayout>
+
         <Spinner
             android:id="@+id/habitSpinner"
             android:layout_width="match_parent"
@@ -145,7 +191,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="22dp"
-            android:text="Widget tip: add Dot Habit to your home screen, choose a habit, then tap the widget dots to update today."
+            android:text="Widget tip: choose any habit for the widget. It will show challenge progress and your reward."
             android:textColor="#8D96A8"
             android:textSize="13sp" />
 
