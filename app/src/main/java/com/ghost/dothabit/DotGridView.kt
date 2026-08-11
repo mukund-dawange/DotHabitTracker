@@ -36,6 +36,12 @@ class DotGridView @JvmOverloads constructor(
         strokeWidth = 4f
     }
 
+    var habitId: String = PrefsHelper.DEFAULT_HABIT_ID
+        set(value) {
+            field = value
+            invalidate()
+        }
+
     var onDayTapped: ((dayOfMonth: Int) -> Unit)? = null
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -68,7 +74,7 @@ class DotGridView @JvmOverloads constructor(
                 else -> {
                     val dayCal = Calendar.getInstance()
                     dayCal.set(Calendar.DAY_OF_MONTH, day)
-                    if (PrefsHelper.isDone(context, dayCal)) greenPaint else redPaint
+                        if (PrefsHelper.isDone(context, dayCal, habitId)) greenPaint else redPaint
                 }
             }
             canvas.drawCircle(cx, cy, dotRadius, paint)

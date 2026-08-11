@@ -3,6 +3,7 @@ package com.ghost.dothabit
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -12,15 +13,11 @@ import android.graphics.Paint
 import android.widget.RemoteViews
 import java.util.Calendar
 
-/**
- * Home-screen widget: shows the same red/green dot grid as the app,
- * for the current month, and lets you tap the widget to mark TODAY
- * as done/not-done without opening the app.
- */
 class HabitWidgetProvider : AppWidgetProvider() {
 
     companion object {
         const val ACTION_TOGGLE_TODAY = "com.ghost.dothabit.ACTION_TOGGLE_TODAY"
+        const val EXTRA_WIDGET_ID = "widget_id"
 
         fun updateAll(context: Context, mgr: AppWidgetManager, ids: IntArray) {
             for (id in ids) {
@@ -29,34 +26,48 @@ class HabitWidgetProvider : AppWidgetProvider() {
         }
 
         private fun updateOne(context: Context, mgr: AppWidgetManager, widgetId: Int) {
+            val habitId = PrefsHelper.getWidgetHabitId(context, widgetId)
             val views = RemoteViews(context.packageName, R.layout.widget_dot_habit)
-            views.setTextViewText(R.id.widgetHabitName, PrefsHelper.getHabitName(context))
+            views.setTextViewText(R.id.widgetHabitName, PrefsHelper.getHabitName(context, habitId))
 
             val today = Calendar.getInstance()
-            val doneToday = PrefsHelper.isDone(context, today)
+            val doneToday = PrefsHelper.isDone(context, today, habitId)
             views.setTextViewText(
                 R.id.widgetTodayStatus,
-                if (doneToday) "Today: done ✅ (tap to undo)" else "Today: not done — tap to mark"
+                if (doneToday) "Today: done (tap to undo)" else "Today: not done - tap to mark"
             )
 
-            val bitmap = renderDotGrid(context)
-            views.setImageViewBitmap(R.id.widgetDotImage, bitmap)
+            views.setImageViewBitmap(R.id.widgetDotImage, renderDotGrid(context, habitId))
 
-            // Tapping anywhere on the widget toggles today's status.
-            val intent = Intent(context, HabitWidgetProvider::class.java).apply {
+            val toggleIntent = Intent(context, HabitWidgetProvider::class.java).apply {
                 action = ACTION_TOGGLE_TODAY
+                putExtra(EXTRA_WIDGET_ID, widgetId)
             }
-            val pendingIntent = PendingIntent.getBroadcast(
-                context, widgetId, intent,
+            val togglePendingIntent = PendingIntent.getBroadcast(
+                context,
+                widgetId,
+                toggleIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
-            views.setOnClickPendingIntent(R.id.widgetDotImage, pendingIntent)
-            views.setOnClickPendingIntent(R.id.widgetTodayStatus, pendingIntent)
+
+            val configIntent = Intent(context, WidgetConfigActivity::class.java).apply {
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+            }
+            val configPendingIntent = PendingIntent.getActivity(
+                context,
+                widgetId + 10000,
+                configIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+            views.setOnClickPendingIntent(R.id.widgetDotImage, togglePendingIntent)
+            views.setOnClickPendingIntent(R.id.widgetTodayStatus, togglePendingIntent)
+            views.setOnClickPendingIntent(R.id.widgetHabitName, configPendingIntent)
 
             mgr.updateAppWidget(widgetId, views)
         }
 
-        private fun renderDotGrid(context: Context): Bitmap {
+        private fun renderDotGrid(context: Context, habitId: String): Bitmap {
             val cols = 7
             val cellSize = 60
             val cal = Calendar.getInstance()
@@ -64,14 +75,12 @@ class HabitWidgetProvider : AppWidgetProvider() {
             val today = cal.get(Calendar.DAY_OF_MONTH)
             val rows = ((totalDays - 1) / cols) + 1
 
-            val width = cols * cellSize
-            val height = rows * cellSize
-            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            val bitmap = Bitmap.createBitmap(cols * cellSize, rows * cellSize, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
 
-            val red = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#E53935") }
-            val green = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#43A047") }
-            val future = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#3A3A3A") }
+            val red = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#FF5A6A") }
+            val green = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#44D27A") }
+            val future = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#384052") }
             val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = Color.WHITE
                 style = Paint.Style.STROKE
@@ -91,7 +100,7 @@ class HabitWidgetProvider : AppWidgetProvider() {
                     else -> {
                         val dayCal = Calendar.getInstance()
                         dayCal.set(Calendar.DAY_OF_MONTH, day)
-                        if (PrefsHelper.isDone(context, dayCal)) green else red
+                        if (PrefsHelper.isDone(context, dayCal, habitId)) green else red
                     }
                 }
                 canvas.drawCircle(cx, cy, radius, paint)
@@ -108,12 +117,15 @@ class HabitWidgetProvider : AppWidgetProvider() {
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
         if (intent.action == ACTION_TOGGLE_TODAY) {
-            PrefsHelper.toggleToday(context)
+            val widgetId = intent.getIntExtra(EXTRA_WIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
+            PrefsHelper.toggleToday(context, PrefsHelper.getWidgetHabitId(context, widgetId))
             val mgr = AppWidgetManager.getInstance(context)
-            val ids = mgr.getAppWidgetIds(
-                android.content.ComponentName(context, HabitWidgetProvider::class.java)
-            )
+            val ids = mgr.getAppWidgetIds(ComponentName(context, HabitWidgetProvider::class.java))
             updateAll(context, mgr, ids)
         }
+    }
+
+    override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+        appWidgetIds.forEach { PrefsHelper.removeWidgetHabit(context, it) }
     }
 }

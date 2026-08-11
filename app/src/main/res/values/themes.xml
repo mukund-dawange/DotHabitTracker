@@ -1,6 +1,10 @@
 <resources>
     <style name="Theme.DotHabit" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <item name="colorPrimary">#43A047</item>
-        <item name="android:windowBackground">#121212</item>
+        <item name="colorPrimary">#44D27A</item>
+        <item name="colorPrimaryVariant">#2AA75A</item>
+        <item name="colorSecondary">#8FD8FF</item>
+        <item name="android:windowBackground">#10131A</item>
+        <item name="android:navigationBarColor">#10131A</item>
+        <item name="android:fontFamily">sans</item>
     </style>
 </resources>
