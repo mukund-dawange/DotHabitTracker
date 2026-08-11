@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#121212"
+    android:padding="20dp">
+
+    <TextView
+        android:id="@+id/habitNameText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="My Habit"
+        android:textColor="#FFFFFF"
+        android:textSize="24sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="20dp"
+        android:text="Tap habit name to rename. Tap a dot to mark it done."
+        android:textColor="#9E9E9E"
+        android:textSize="12sp" />
+
+    <TextView
+        android:id="@+id/monthText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
+        android:textColor="#BDBDBD"
+        android:textSize="16sp" />
+
+    <com.ghost.dothabit.DotGridView
+        android:id="@+id/dotGrid"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="🔴 Not done (auto)"
+            android:textColor="#E53935" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="🟢 Done (manual)"
+            android:textColor="#43A047" />
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="Tip: add the 'Dot Habit' widget to your home screen to see and tap today's dot without opening the app."
+        android:textColor="#616161"
+        android:textSize="12sp" />
+
+</LinearLayout>
